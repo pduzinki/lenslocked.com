@@ -3,6 +3,9 @@ package models
 import (
 	"errors"
 
+	"lenslocked.com/hash"
+	"lenslocked.com/rand"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"golang.org/x/crypto/bcrypt"
@@ -17,6 +20,8 @@ var (
 	ErrInvalidPassword = errors.New("models: incorrect password provided")
 )
 
+const hmacSecretKey = "secter-hmac-key"
+
 var userPwPepper = "!secret-random-string!"
 
 // User ...
@@ -26,11 +31,14 @@ type User struct {
 	Email        string `gorm:"not null;unique_index"`
 	Password     string `gorm:"-"`
 	PasswordHash string `gorm:"not null"`
+	Remember     string `gorm:"-"`
+	RememberHash string `gorm:"not null;unique_index"`
 }
 
 // UserService ...
 type UserService struct {
-	db *gorm.DB
+	db   *gorm.DB
+	hmac hash.HMAC
 }
 
 // NewUserService ...
@@ -40,8 +48,10 @@ func NewUserService(connectionInfo string) (*UserService, error) {
 		return nil, err
 	}
 	db.LogMode(true)
+	hmac := hash.NewHMAC(hmacSecretKey)
 	return &UserService{
-		db: db,
+		db:   db,
+		hmac: hmac,
 	}, nil
 }
 
@@ -72,18 +82,15 @@ func (us *UserService) ByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-// Update ...
-func (us *UserService) Update(user *User) error {
-	return us.db.Save(user).Error
-}
-
-// Delete ...
-func (us *UserService) Delete(id uint) error {
-	if id == 0 {
-		return ErrInvalidID
+// ByRemember ...
+func (us *UserService) ByRemember(token string) (*User, error) {
+	var user User
+	RememberHash := us.hmac.Hash(token)
+	err := first(us.db.Where("remember_hash = ?", RememberHash), &user)
+	if err != nil {
+		return nil, err
 	}
-	user := User{Model: gorm.Model{ID: id}}
-	return us.db.Delete(&user).Error
+	return &user, nil
 }
 
 // Create ...
@@ -95,7 +102,33 @@ func (us *UserService) Create(user *User) error {
 	}
 	user.PasswordHash = string(hashedBytes)
 	user.Password = ""
+
+	if user.Remember == "" {
+		token, err := rand.RememberToken()
+		if err != nil {
+			return err
+		}
+		user.Remember = token
+	}
+	user.RememberHash = us.hmac.Hash(user.Remember)
 	return us.db.Create(user).Error
+}
+
+// Update ...
+func (us *UserService) Update(user *User) error {
+	if user.Remember != "" {
+		user.RememberHash = us.hmac.Hash(user.Remember)
+	}
+	return us.db.Save(user).Error
+}
+
+// Delete ...
+func (us *UserService) Delete(id uint) error {
+	if id == 0 {
+		return ErrInvalidID
+	}
+	user := User{Model: gorm.Model{ID: id}}
+	return us.db.Delete(&user).Error
 }
 
 // AutoMigrate ...
