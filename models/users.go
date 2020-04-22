@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 
 	"lenslocked.com/hash"
 	"lenslocked.com/rand"
@@ -96,6 +97,18 @@ func (ug *userGorm) ByID(id uint) (*User, error) {
 	return &user, nil
 }
 
+func (uv *userValidator) ByEmail(email string) (*User, error) {
+	user := User{
+		Email: email,
+	}
+
+	err := runUserValFns(&user, uv.normalizeEmail)
+	if err != nil {
+		return nil, err
+	}
+	return uv.UserDB.ByEmail(user.Email)
+}
+
 // ByEmail ...
 func (ug *userGorm) ByEmail(email string) (*User, error) {
 	var user User
@@ -130,15 +143,11 @@ func (ug *userGorm) ByRemember(rememberHash string) (*User, error) {
 }
 
 func (uv *userValidator) Create(user *User) error {
-	if user.Remember == "" {
-		token, err := rand.RememberToken()
-		if err != nil {
-			return err
-		}
-		user.Remember = token
-	}
-
-	err := runUserValFns(user, uv.bcryptPassword, uv.hmacRemember)
+	err := runUserValFns(user,
+		uv.bcryptPassword,
+		uv.setRememberInUnset,
+		uv.hmacRemember,
+		uv.normalizeEmail)
 	if err != nil {
 		return err
 	}
@@ -152,7 +161,10 @@ func (ug *userGorm) Create(user *User) error {
 }
 
 func (uv *userValidator) Update(user *User) error {
-	err := runUserValFns(user, uv.bcryptPassword, uv.hmacRemember)
+	err := runUserValFns(user,
+		uv.bcryptPassword,
+		uv.hmacRemember,
+		uv.normalizeEmail)
 	if err != nil {
 		return err
 	}
@@ -166,8 +178,11 @@ func (ug *userGorm) Update(user *User) error {
 }
 
 func (uv *userValidator) Delete(id uint) error {
-	if id == 0 {
-		return ErrInvalidID
+	var user User
+	user.ID = id
+	err := runUserValFns(&user, uv.idGreaterThan(0))
+	if err != nil {
+		return err
 	}
 	return uv.UserDB.Delete(id)
 }
@@ -289,5 +304,32 @@ func (uv *userValidator) hmacRemember(user *User) error {
 		return nil
 	}
 	user.RememberHash = uv.hmac.Hash(user.Remember)
+	return nil
+}
+
+func (uv *userValidator) setRememberInUnset(user *User) error {
+	if user.Remember != "" {
+		return nil
+	}
+
+	token, err := rand.RememberToken()
+	if err != nil {
+		return err
+	}
+	user.Remember = token
+	return nil
+}
+func (uv *userValidator) idGreaterThan(n uint) userValFn {
+	return userValFn(func(user *User) error {
+		if user.ID <= n {
+			return ErrInvalidID
+		}
+		return nil
+	})
+}
+
+func (uv *userValidator) normalizeEmail(user *User) error {
+	user.Email = strings.ToLower(user.Email)
+	user.Email = strings.TrimSpace(user.Email)
 	return nil
 }
