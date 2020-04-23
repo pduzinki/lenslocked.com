@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"lenslocked.com/hash"
@@ -19,6 +20,10 @@ var (
 	ErrInvalidID = errors.New("models: ID provided was invalid")
 	// ErrInvalidPassword ...
 	ErrInvalidPassword = errors.New("models: incorrect password provided")
+	// ErrEmailRequired ...
+	ErrEmailRequired = errors.New("models: email address is required")
+	// ErrEmailInvalid ...
+	ErrEmailInvalid = errors.New("models: email address is invalid")
 )
 
 const hmacSecretKey = "secter-hmac-key"
@@ -81,7 +86,8 @@ type userService struct {
 // UserDB in our interface chain
 type userValidator struct {
 	UserDB
-	hmac hash.HMAC
+	hmac       hash.HMAC
+	emailRegex *regexp.Regexp
 }
 
 type userValFn func(*User) error
@@ -147,7 +153,9 @@ func (uv *userValidator) Create(user *User) error {
 		uv.bcryptPassword,
 		uv.setRememberInUnset,
 		uv.hmacRemember,
-		uv.normalizeEmail)
+		uv.normalizeEmail,
+		uv.requireEmail,
+		uv.emailFormat)
 	if err != nil {
 		return err
 	}
@@ -164,7 +172,9 @@ func (uv *userValidator) Update(user *User) error {
 	err := runUserValFns(user,
 		uv.bcryptPassword,
 		uv.hmacRemember,
-		uv.normalizeEmail)
+		uv.normalizeEmail,
+		uv.requireEmail,
+		uv.emailFormat)
 	if err != nil {
 		return err
 	}
@@ -227,6 +237,15 @@ func newUserGorm(connectionInfo string) (*userGorm, error) {
 	}, nil
 }
 
+// newUserValidator ...
+func newUserValidator(udb UserDB, hmac hash.HMAC) *userValidator {
+	return &userValidator{
+		UserDB:     udb,
+		hmac:       hmac,
+		emailRegex: regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,16}$`),
+	}
+}
+
 // NewUserService ...
 func NewUserService(connectionInfo string) (UserService, error) {
 	ug, err := newUserGorm(connectionInfo)
@@ -235,10 +254,7 @@ func NewUserService(connectionInfo string) (UserService, error) {
 	}
 
 	hmac := hash.NewHMAC(hmacSecretKey)
-	uv := &userValidator{
-		hmac:   hmac,
-		UserDB: ug,
-	}
+	uv := newUserValidator(ug, hmac)
 
 	return &userService{
 		UserDB: uv,
@@ -331,5 +347,22 @@ func (uv *userValidator) idGreaterThan(n uint) userValFn {
 func (uv *userValidator) normalizeEmail(user *User) error {
 	user.Email = strings.ToLower(user.Email)
 	user.Email = strings.TrimSpace(user.Email)
+	return nil
+}
+
+func (uv *userValidator) requireEmail(user *User) error {
+	if user.Email == "" {
+		return ErrEmailRequired
+	}
+	return nil
+}
+
+func (uv *userValidator) emailFormat(user *User) error {
+	if user.Email == "" {
+		return nil
+	}
+	if !uv.emailRegex.MatchString(user.Email) {
+		return ErrEmailInvalid
+	}
 	return nil
 }
