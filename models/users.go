@@ -20,12 +20,20 @@ var (
 	ErrIDInvalid = errors.New("models: ID provided was invalid")
 	// ErrPasswordIncorrect ...
 	ErrPasswordIncorrect = errors.New("models: incorrect password provided")
+	// ErrPasswordTooShort ...
+	ErrPasswordTooShort = errors.New("models: password must be at least 8 characters long")
+	// ErrPasswordRequired ...
+	ErrPasswordRequired = errors.New("models: password is required")
 	// ErrEmailRequired ...
 	ErrEmailRequired = errors.New("models: email address is required")
 	// ErrEmailInvalid ...
 	ErrEmailInvalid = errors.New("models: email address is invalid")
 	// ErrEmailTaken ...
 	ErrEmailTaken = errors.New("models: email address is already taken")
+	// ErrRememberRequired ...
+	ErrRememberRequired = errors.New("models: remember token is required")
+	// ErrRememberTooShort ...
+	ErrRememberTooShort = errors.New("models: remember token must be at least 32 bytes")
 )
 
 const hmacSecretKey = "secter-hmac-key"
@@ -152,9 +160,14 @@ func (ug *userGorm) ByRemember(rememberHash string) (*User, error) {
 
 func (uv *userValidator) Create(user *User) error {
 	err := runUserValFns(user,
+		uv.passwordRequired,
+		uv.passwordMinLength,
 		uv.bcryptPassword,
+		uv.passwordHashRequired,
 		uv.setRememberInUnset,
+		uv.rememberMinBytes,
 		uv.hmacRemember,
+		uv.rememberHashRequired,
 		uv.normalizeEmail,
 		uv.requireEmail,
 		uv.emailFormat,
@@ -173,8 +186,12 @@ func (ug *userGorm) Create(user *User) error {
 
 func (uv *userValidator) Update(user *User) error {
 	err := runUserValFns(user,
+		uv.passwordMinLength,
 		uv.bcryptPassword,
+		uv.passwordHashRequired,
+		uv.rememberMinBytes,
 		uv.hmacRemember,
+		uv.rememberHashRequired,
 		uv.normalizeEmail,
 		uv.requireEmail,
 		uv.emailFormat,
@@ -381,6 +398,51 @@ func (uv *userValidator) emailIsAvailable(user *User) error {
 	}
 	if user.ID != existing.ID {
 		return ErrEmailTaken
+	}
+	return nil
+}
+
+func (uv *userValidator) passwordMinLength(user *User) error {
+	if user.Password == "" {
+		return nil
+	}
+	if len(user.Password) < 8 {
+		return ErrPasswordTooShort
+	}
+	return nil
+}
+
+func (uv *userValidator) passwordRequired(user *User) error {
+	if user.Password == "" {
+		return ErrPasswordRequired
+	}
+	return nil
+}
+
+func (uv *userValidator) passwordHashRequired(user *User) error {
+	if user.PasswordHash == "" {
+		return ErrPasswordRequired
+	}
+	return nil
+}
+
+func (uv *userValidator) rememberMinBytes(user *User) error {
+	if user.Remember == "" {
+		return nil
+	}
+	n, err := rand.NBytes(user.Remember)
+	if err != nil {
+		return err
+	}
+	if n < 32 {
+		return ErrRememberTooShort
+	}
+	return nil
+}
+
+func (uv *userValidator) rememberHashRequired(user *User) error {
+	if user.RememberHash == "" {
+		return ErrRememberRequired
 	}
 	return nil
 }
