@@ -16,14 +16,16 @@ import (
 var (
 	// ErrNotFound ...
 	ErrNotFound = errors.New("models: resource not found")
-	// ErrInvalidID ...
-	ErrInvalidID = errors.New("models: ID provided was invalid")
-	// ErrInvalidPassword ...
-	ErrInvalidPassword = errors.New("models: incorrect password provided")
+	// ErrIDInvalid ...
+	ErrIDInvalid = errors.New("models: ID provided was invalid")
+	// ErrPasswordIncorrect ...
+	ErrPasswordIncorrect = errors.New("models: incorrect password provided")
 	// ErrEmailRequired ...
 	ErrEmailRequired = errors.New("models: email address is required")
 	// ErrEmailInvalid ...
 	ErrEmailInvalid = errors.New("models: email address is invalid")
+	// ErrEmailTaken ...
+	ErrEmailTaken = errors.New("models: email address is already taken")
 )
 
 const hmacSecretKey = "secter-hmac-key"
@@ -155,7 +157,8 @@ func (uv *userValidator) Create(user *User) error {
 		uv.hmacRemember,
 		uv.normalizeEmail,
 		uv.requireEmail,
-		uv.emailFormat)
+		uv.emailFormat,
+		uv.emailIsAvailable)
 	if err != nil {
 		return err
 	}
@@ -174,7 +177,8 @@ func (uv *userValidator) Update(user *User) error {
 		uv.hmacRemember,
 		uv.normalizeEmail,
 		uv.requireEmail,
-		uv.emailFormat)
+		uv.emailFormat,
+		uv.emailIsAvailable)
 	if err != nil {
 		return err
 	}
@@ -283,7 +287,7 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 	case nil:
 		return foundUser, nil
 	case bcrypt.ErrMismatchedHashAndPassword:
-		return nil, ErrInvalidPassword
+		return nil, ErrPasswordIncorrect
 	default:
 		return nil, err
 	}
@@ -338,7 +342,7 @@ func (uv *userValidator) setRememberInUnset(user *User) error {
 func (uv *userValidator) idGreaterThan(n uint) userValFn {
 	return userValFn(func(user *User) error {
 		if user.ID <= n {
-			return ErrInvalidID
+			return ErrIDInvalid
 		}
 		return nil
 	})
@@ -363,6 +367,20 @@ func (uv *userValidator) emailFormat(user *User) error {
 	}
 	if !uv.emailRegex.MatchString(user.Email) {
 		return ErrEmailInvalid
+	}
+	return nil
+}
+
+func (uv *userValidator) emailIsAvailable(user *User) error {
+	existing, err := uv.ByEmail(user.Email)
+	if err == ErrNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if user.ID != existing.ID {
+		return ErrEmailTaken
 	}
 	return nil
 }
