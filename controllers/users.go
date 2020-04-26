@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"lenslocked.com/models"
@@ -32,9 +33,16 @@ func (u *Users) New(w http.ResponseWriter, r *http.Request) {
 
 // POST /signup
 func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
+	var vd views.Data
 	var form SignupForm
 	if err := parseForm(r, &form); err != nil {
-		panic(err)
+		log.Println(err)
+		vd.Alert = &views.Alert{
+			Level:   views.AlertLvlError,
+			Message: views.AlerMsgGeneric,
+		}
+		u.NewView.Render(w, vd)
+		return
 	}
 
 	user := models.User{
@@ -43,13 +51,17 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		Password: form.Password,
 	}
 	if err := u.us.Create(&user); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		vd.Alert = &views.Alert{
+			Level:   views.AlertLvlError,
+			Message: err.Error(),
+		}
+		u.NewView.Render(w, vd)
 		return
 	}
 
 	err := u.signIn(w, &user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
