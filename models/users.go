@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"regexp"
 	"strings"
 
@@ -13,27 +12,40 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
+type modelError string
+
+func (e modelError) Error() string {
+	return string(e)
+}
+
+func (e modelError) Public() string {
+	s := strings.Replace(string(e), "models: ", "", 1)
+	split := strings.Split(s, " ")
+	split[0] = strings.Title(split[0])
+	return strings.Join(split, " ")
+}
+
+const (
 	// ErrNotFound ...
-	ErrNotFound = errors.New("models: resource not found")
+	ErrNotFound modelError = "models: resource not found"
 	// ErrIDInvalid ...
-	ErrIDInvalid = errors.New("models: ID provided was invalid")
+	ErrIDInvalid modelError = "models: ID provided was invalid"
 	// ErrPasswordIncorrect ...
-	ErrPasswordIncorrect = errors.New("models: incorrect password provided")
+	ErrPasswordIncorrect modelError = "models: incorrect password provided"
 	// ErrPasswordTooShort ...
-	ErrPasswordTooShort = errors.New("models: password must be at least 8 characters long")
+	ErrPasswordTooShort modelError = "models: password must be at least 8 characters long"
 	// ErrPasswordRequired ...
-	ErrPasswordRequired = errors.New("models: password is required")
+	ErrPasswordRequired modelError = "models: password is required"
 	// ErrEmailRequired ...
-	ErrEmailRequired = errors.New("models: email address is required")
+	ErrEmailRequired modelError = "models: email address is required"
 	// ErrEmailInvalid ...
-	ErrEmailInvalid = errors.New("models: email address is invalid")
+	ErrEmailInvalid modelError = "models: email address is invalid"
 	// ErrEmailTaken ...
-	ErrEmailTaken = errors.New("models: email address is already taken")
+	ErrEmailTaken modelError = "models: email address is already taken"
 	// ErrRememberRequired ...
-	ErrRememberRequired = errors.New("models: remember token is required")
+	ErrRememberRequired modelError = "models: remember token is required"
 	// ErrRememberTooShort ...
-	ErrRememberTooShort = errors.New("models: remember token must be at least 32 bytes")
+	ErrRememberTooShort modelError = "models: remember token must be at least 32 bytes"
 )
 
 const hmacSecretKey = "secter-hmac-key"
