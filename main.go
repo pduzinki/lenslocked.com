@@ -61,6 +61,7 @@ func main() {
 
 	r.Handle("/galleries/new", newGallery).Methods("GET")
 	r.HandleFunc("/galleries", createGallery).Methods("POST")
+	r.HandleFunc("/galleries/{id:[0-9]+}", galleriesC.Show).Methods("GET")
 
 	nf := http.HandlerFunc(notFound)
 	r.NotFoundHandler = nf
