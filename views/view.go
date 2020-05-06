@@ -70,6 +70,7 @@ func (v *View) Render(w http.ResponseWriter, data interface{}) {
 	err := v.Template.ExecuteTemplate(&buf, v.Layout, data)
 	if err != nil {
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
 	}
 	io.Copy(w, &buf)
 }
