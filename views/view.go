@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+
+	"lenslocked.com/context"
 )
 
 var (
@@ -54,20 +56,22 @@ type View struct {
 	Layout   string
 }
 
-func (v *View) Render(w http.ResponseWriter, data interface{}) {
+func (v *View) Render(w http.ResponseWriter, r *http.Request, data interface{}) {
 	w.Header().Set("Content-Type", "text/html")
+	var vd Data
 
-	switch data.(type) {
+	switch d := data.(type) {
 	case Data:
-		// do nothing
+		vd = d
 	default:
-		data = Data{
+		vd = Data{
 			Yield: data,
 		}
 	}
 
+	vd.User = context.User(r.Context())
 	var buf bytes.Buffer
-	err := v.Template.ExecuteTemplate(&buf, v.Layout, data)
+	err := v.Template.ExecuteTemplate(&buf, v.Layout, vd)
 	if err != nil {
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
@@ -76,5 +80,5 @@ func (v *View) Render(w http.ResponseWriter, data interface{}) {
 }
 
 func (v *View) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	v.Render(w, nil)
+	v.Render(w, r, nil)
 }
