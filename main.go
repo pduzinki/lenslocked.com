@@ -74,6 +74,8 @@ func main() {
 	r.HandleFunc("/galleries",
 		requireUserMw.ApplyFn(galleriesC.Index)).Methods("GET").
 		Name(controllers.IndexGalleries)
+	r.HandleFunc("/galleries/{id:[0-9]+}/images",
+		requireUserMw.ApplyFn(galleriesC.ImageUpload)).Methods("POST")
 
 	nf := http.HandlerFunc(notFound)
 	r.NotFoundHandler = nf
