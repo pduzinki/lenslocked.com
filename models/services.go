@@ -6,6 +6,7 @@ type Services struct {
 	db      *gorm.DB
 	Gallery GalleryService
 	User    UserService
+	Image   ImageService
 }
 
 // NewServices establishes database connection and creates model services
@@ -20,6 +21,7 @@ func NewServices(connectionInfo string) (*Services, error) {
 		db:      db,
 		User:    NewUserService(db),
 		Gallery: NewGalleryService(db),
+		Image:   NewImageService(),
 	}, nil
 }
 
