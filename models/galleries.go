@@ -9,8 +9,9 @@ const (
 
 type Gallery struct {
 	gorm.Model
-	UserID uint   `gorm:"not_null;index"`
-	Title  string `gorm:"not_null"`
+	UserID uint     `gorm:"not_null;index"`
+	Title  string   `gorm:"not_null"`
+	Images []string `gorm:"-"`
 }
 
 type GalleryService interface {
@@ -134,4 +135,16 @@ func (gv *galleryValidator) nonZeroID(gallery *Gallery) error {
 		return ErrIDInvalid
 	}
 	return nil
+}
+
+func (g *Gallery) ImagesSplitN(n int) [][]string {
+	ret := make([][]string, n)
+	for i := 0; i < n; i++ {
+		ret[i] = make([]string, 0)
+	}
+	for i, img := range g.Images {
+		bucket := i % n
+		ret[bucket] = append(ret[bucket], img)
+	}
+	return ret
 }
