@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/csrf"
 	"net/http"
 
 	"lenslocked.com/controllers"
 	"lenslocked.com/middleware"
 	"lenslocked.com/models"
+	"lenslocked.com/rand"
 
 	"github.com/gorilla/mux"
 )
@@ -91,5 +93,12 @@ func main() {
 	nf := http.HandlerFunc(notFound)
 	r.NotFoundHandler = nf
 
-	http.ListenAndServe(":3000", userMw.Apply(r))
+	isProd := false
+	b, err := rand.Bytes(32)
+	if err != nil {
+		panic(err)
+	}
+	csfwMw := csrf.Protect(b, csrf.Secure(isProd))
+
+	http.ListenAndServe(":3000", csfwMw(userMw.Apply(r)))
 }
