@@ -27,11 +27,16 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	cfg := DefaultConfig()
+	dbCfg := DefaultPostgresConfig()
 
-	services, err := models.NewServices(psqlInfo)
+	services, err := models.NewServices(
+		models.WithGorm(dbCfg.Dialect(), dbCfg.ConnectionInfo()),
+		models.WithLogMode(!cfg.IsProd()),
+		models.WithUser(cfg.Pepper, cfg.HMACKey),
+		models.WithGallery(),
+		models.WithImage(),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -93,12 +98,12 @@ func main() {
 	nf := http.HandlerFunc(notFound)
 	r.NotFoundHandler = nf
 
-	isProd := false
 	b, err := rand.Bytes(32)
 	if err != nil {
 		panic(err)
 	}
-	csfwMw := csrf.Protect(b, csrf.Secure(isProd))
+	csfwMw := csrf.Protect(b, csrf.Secure(cfg.IsProd()))
 
-	http.ListenAndServe(":3000", csfwMw(userMw.Apply(r)))
+	fmt.Printf("Starting the server on :%d\n", cfg.Port)
+	http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), csfwMw(userMw.Apply(r)))
 }
