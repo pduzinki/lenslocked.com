@@ -1,0 +1,13 @@
+[Unit]
+Description=caddy server for serving lenslocked.com
+
+[Service]
+WorkingDirectory=/root/app
+ExecStart=/usr/local/bin/caddy run --environ --config /root/app/Caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /root/app/Caddyfile
+Restart=always
+RestartSec=120
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target
