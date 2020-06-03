@@ -3,6 +3,7 @@ package models
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"lenslocked.com/hash"
 	"lenslocked.com/rand"
@@ -46,6 +47,8 @@ const (
 	ErrRememberRequired modelError = "models: remember token is required"
 	// ErrRememberTooShort ...
 	ErrRememberTooShort modelError = "models: remember token must be at least 32 bytes"
+	// ErrTokenInvalid ...
+	ErrTokenInvalid modelError = "models: token provided is not valid"
 )
 
 // UserDB is used to interact with the users database
@@ -67,6 +70,8 @@ type UserService interface {
 	// Authenticase will verify that the provided
 	// email and password are correct
 	Authenticate(email, password string) (*User, error)
+	InitiateReset(email string) (string, error)
+	CompleteReset(token, newPw string) (*User, error)
 	UserDB
 }
 
@@ -90,7 +95,8 @@ type User struct {
 // userService ...
 type userService struct {
 	UserDB
-	pepper string
+	pepper    string
+	pwResetDB pwResetDB
 }
 
 // userValidator is our validation layer that validates and
@@ -244,8 +250,9 @@ func NewUserService(db *gorm.DB, pepper, hmacKey string) UserService {
 	uv := newUserValidator(ug, hmac, pepper)
 
 	return &userService{
-		UserDB: uv,
-		pepper: pepper,
+		UserDB:    uv,
+		pepper:    pepper,
+		pwResetDB: newPwResetValidator(&pwResetGorm{db}, hmac),
 	}
 }
 
@@ -275,6 +282,48 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 	default:
 		return nil, err
 	}
+}
+
+func (us *userService) InitiateReset(email string) (string, error) {
+	user, err := us.ByEmail(email)
+	if err != nil {
+		return "", err
+	}
+	pwr := pwReset{
+		UserID: user.ID,
+	}
+	if err := us.pwResetDB.Create(&pwr); err != nil {
+		return "", err
+	}
+	return pwr.Token, nil
+}
+
+func (us *userService) CompleteReset(token, newPw string) (*User, error) {
+	pwr, err := us.pwResetDB.ByToken(token)
+	if err != nil {
+		if err == ErrNotFound {
+			return nil, ErrTokenInvalid
+		}
+		return nil, err
+	}
+
+	duration := time.Now().Sub(pwr.CreatedAt)
+	thirtyMinutes := 30 * time.Minute
+	if duration > thirtyMinutes {
+		return nil, ErrTokenInvalid
+	}
+
+	user, err := us.ByID(pwr.UserID)
+	if err != nil {
+		return nil, err
+	}
+	user.Password = newPw
+	err = us.Update(user)
+	if err != nil {
+		return nil, err
+	}
+	us.pwResetDB.Delete(pwr.ID)
+	return user, nil
 }
 
 // validation functions
