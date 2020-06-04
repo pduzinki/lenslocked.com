@@ -8,30 +8,27 @@ import (
 )
 
 const (
-	welcomeSubject = "Welcome to LensLocked.com!"
+	welcomeSubject = "Welcome to pduzinki.com!"
 	resetSubject   = "Instructions for resetting your password."
-	resetBaseURL   = "https://www.lenslocked.com/reset"
+	resetBaseURL   = "https://www.pduzinki.com/reset"
 )
 
-const welcomeText = `Hi there!
+const welcomeText = `Hello there!
 
-Welcome to LensLocked.com! We really hope you enjoy using
-our application!
+Welcome to pduzinki.com! Have fun!
 
-Best,
-Jon
+Cheers!
 `
 
-const welcomeHTML = `Hi there!<br/>
+const welcomeHTML = `Hello there!<br/>
 <br/>
 Welcome to
-<a href="https://www.lenslocked.com">LensLocked.com</a>! We really hope you enjoy using our application!<br/>
+<a href="https://www.pduzinki.com">pduzinkicom</a>! Have fun!<br/>
 <br/>
-Best,<br/>
-Jon
+Cheers!
 `
 
-const resetTextTmpl = `Hi there!
+const resetTextTmpl = `Hello there!
 
 It appears that you have requested a password reset. If this was you, please follow the link below to update your password:
 
@@ -44,7 +41,7 @@ If you are asked for a token, please use the following value:
 If you didn't request a password reset you can safely ignore this email and your account will not be changed.
 
 Best,
-LensLocked Support
+pduzinki.com support
 `
 
 const resetHTMLTmpl = `Hi there!<br/>
@@ -60,7 +57,7 @@ If you are asked for a token, please use the following value:<br/>
 If you didn't request a password reset you can safely ignore this email and your account will not be changed.<br/>
 <br/>
 Best,<br/>
-LensLocked Support<br/>
+pduzinki.com support<br/>
 `
 
 func WithMailgun(domain, apiKey, publicKey string) ClientConfig {
@@ -81,7 +78,7 @@ type ClientConfig func(*Client)
 func NewClient(opts ...ClientConfig) *Client {
 	client := Client{
 		// Set a default from email address...
-		from: "support@lenslocked.com",
+		from: "support@pduzinki.com",
 	}
 	for _, opt := range opts {
 		opt(&client)

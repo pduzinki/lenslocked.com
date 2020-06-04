@@ -50,7 +50,7 @@ func main() {
 
 	mgCfg := cfg.Mailgun
 	emailer := email.NewClient(
-		email.WithSender("Lenslocked.com Support", "support@mg.lenslocked.com"),
+		email.WithSender("pduzinki.com support", "support@mg.pduzinki.com"),
 		email.WithMailgun(mgCfg.Domain, mgCfg.APIKey, mgCfg.PublicAPIKey),
 	)
 
@@ -78,6 +78,10 @@ func main() {
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/logout", requireUserMw.ApplyFn(usersC.Logout)).Methods("POST")
 	r.HandleFunc("/cookietest", usersC.CookieTest).Methods("GET")
+	r.Handle("/forgot", usersC.ForgotPwView).Methods("GET")
+	r.HandleFunc("/forgot", usersC.InitiateReset).Methods("POST")
+	r.HandleFunc("/reset", usersC.ResetPw).Methods("GET")
+	r.HandleFunc("/reset", usersC.CompleteReset).Methods("POST")
 
 	r.Handle("/galleries/new", newGallery).Methods("GET")
 	r.HandleFunc("/galleries", createGallery).Methods("POST")
