@@ -31,6 +31,8 @@ ssh root@142.93.100.106 "export GOPATH=/root/go; \
   /usr/local/go/bin/go get github.com/jinzhu/gorm"
 ssh root@142.93.100.106 "export GOPATH=/root/go; \
   /usr/local/go/bin/go get github.com/gorilla/csrf"
+ssh root@142.93.100.106 "export GOPATH=/root/go; \
+  /usr/local/go/bin/go get gopkg.in/mailgun/mailgun-go.v1"
 
 echo "  building the code on remote server..."
 ssh root@142.93.100.106 'export GOPATH=/root/go; \
