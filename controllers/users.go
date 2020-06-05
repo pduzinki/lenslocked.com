@@ -63,7 +63,12 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := u.signIn(w, &user)
+	err := u.emailer.Welcome(form.Name, form.Email)
+	if err != nil {
+		// tough luck, this email is not crucial, so continue
+	}
+
+	err = u.signIn(w, &user)
 	if err != nil {
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
