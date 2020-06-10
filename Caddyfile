@@ -1,4 +1,8 @@
-:80
+pduzinki.com {
+    encode gzip
+    reverse_proxy localhost:3000
+}
 
-encode gzip
-reverse_proxy localhost:3000
+www.pduzinki.com {
+    redir https://pduzinki.com{uri}
+}
